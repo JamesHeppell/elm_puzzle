@@ -14,7 +14,6 @@ import Url
 -- MAIN/PROGRAM
 
 
-
 main : Program () Model Msg
 main =
   Browser.application
@@ -35,25 +34,37 @@ puzzleRows = 3
 puzzleColumns : Int
 puzzleColumns = 2
 
+initialGoalPosition : Coordinate
+initialGoalPosition = {row=2, col=1}
+
 -- MODEL
 
 
 type alias Model =
-  { helloMessage : String
+  { gameMessage : String
     ,turnCounter : Int
     ,gameBoard : List(List(Int))
     ,playerPositionRow : Int
     ,playerPositionColumm : Int
-    ,maxRows: Int
-    ,maxCols: Int
+    ,maxRows : Int
+    ,maxCols : Int
+    ,goalPosition : Coordinate
+    ,isGameFinished : Bool
   }
 
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags _ _ =
-   ( Model "Hello World " 0 [[1,0],[0,3],[0,2]] 0 0 puzzleRows puzzleColumns, Cmd.none )
+   ( initialModel, Cmd.none )
 
 
+initialModel: Model
+initialModel = Model "Navigate the Maze " 0 [[1,0],[0,3],[0,2]] 0 0 puzzleRows puzzleColumns initialGoalPosition False
+
+type alias Coordinate = 
+    { row : Int
+    , col : Int
+    }
 
 -- UPDATE
 
@@ -64,43 +75,72 @@ type Msg
   | ButtonRightClicked 
   | ButtonUpClicked
   | ButtonDownClicked
+  | ResetPuzzle
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
+    ResetPuzzle ->
+      (initialModel, Cmd.none)
     ButtonLeftClicked ->
-      if isValidMove model 0 -1 then 
-          ( {model | turnCounter = model.turnCounter + 1
-                    ,playerPositionColumm = model.playerPositionColumm - 1}
-        , Cmd.none )
-      else 
-        (model, Cmd.none)
+      if isPlayerAtGoal model 0 -1 then
+        ({model | isGameFinished = True
+                  ,gameMessage = "You win!"}, Cmd.none)
+      else
+        if isValidMove model 0 -1 then 
+            ( {model | turnCounter = model.turnCounter + 1
+                      ,playerPositionColumm = model.playerPositionColumm - 1
+                      ,gameMessage = ""}
+          , Cmd.none )
+        else 
+          ({model | gameMessage = "Not a valid move!"}, Cmd.none)
     ButtonRightClicked ->
-      if isValidMove model 0 1 then 
-          ( {model | turnCounter = model.turnCounter + 1
-                    ,playerPositionColumm = model.playerPositionColumm + 1}
-        , Cmd.none )
-      else 
-        (model, Cmd.none)
+      if isPlayerAtGoal model 0 1 then
+        ({model | isGameFinished = True
+                  ,gameMessage = "You win!"}, Cmd.none)
+      else
+        if isValidMove model 0 1 then 
+            ( {model | turnCounter = model.turnCounter + 1
+                      ,playerPositionColumm = model.playerPositionColumm + 1
+                      ,gameMessage = ""}
+          , Cmd.none )
+        else 
+          ({model | gameMessage = "Not a valid move!"}, Cmd.none)
     ButtonUpClicked ->
-     if isValidMove model -1 0 then 
-          ( {model | turnCounter = model.turnCounter + 1
-                    ,playerPositionRow = model.playerPositionRow - 1}
-        , Cmd.none )
-      else 
-        (model, Cmd.none)
+      if isPlayerAtGoal model -1 0 then
+        ({model | isGameFinished = True
+                  ,gameMessage = "You win!"}, Cmd.none)
+      else
+        if isValidMove model -1 0 then 
+              ( {model | turnCounter = model.turnCounter + 1
+                        ,playerPositionRow = model.playerPositionRow - 1
+                        ,gameMessage = ""}
+            , Cmd.none )
+          else 
+            ({model | gameMessage = "Not a valid move!"}, Cmd.none)
     ButtonDownClicked ->
-      if isValidMove model 1 0 then 
-          ( {model | turnCounter = model.turnCounter + 1
-                    ,playerPositionRow = model.playerPositionRow + 1}
-        , Cmd.none )
-      else 
-        (model, Cmd.none)
+      if isPlayerAtGoal model 1 0 then
+        ({model | isGameFinished = True
+                  ,gameMessage = "You win!"}, Cmd.none)
+      else
+        if isValidMove model 1 0 then 
+            ( {model | turnCounter = model.turnCounter + 1
+                      ,playerPositionRow = model.playerPositionRow + 1
+                      ,gameMessage = ""}
+          , Cmd.none )
+        else 
+          ({model | gameMessage = "Not a valid move!"}, Cmd.none)
     _ ->
       ( model, Cmd.none )
 
-
+isPlayerAtGoal: Model -> Int -> Int -> Bool
+isPlayerAtGoal model rowIncrease colIncrease =
+    if model.playerPositionColumm + colIncrease == model.goalPosition.col &&
+       model.playerPositionRow + rowIncrease == model.goalPosition.row then
+      True
+    else
+      False
 
 isValidMove: Model -> Int -> Int -> Bool
 isValidMove model rowIncrease colIncrease = 
@@ -185,5 +225,7 @@ view model =
       , div [] [text("Player Position (row,col) " ++ 
                       String.fromInt model.playerPositionRow ++ " " ++
                       String.fromInt model.playerPositionColumm)]
+      , div [] [text(model.gameMessage)]
+      , div [] [button [ onClick ResetPuzzle ] [text "Restart" ]]
       ]
   }
