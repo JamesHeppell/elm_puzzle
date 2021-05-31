@@ -227,7 +227,7 @@ divButtonStyle = [style "display" "flex"
 
 buttonStyle : List(Attribute Msg)
 buttonStyle = [style "padding" "10px"
-              ,style "margin" "0 10px"
+              ,style "margin" "10px"
               ,style "background-color" "rgb(135, 206, 250)"]
 
 gameStyle : List(Attribute Msg)
@@ -245,17 +245,29 @@ viewResetButton model =
               else 
                 text ""
                 
+viewButtons : Html Msg
+viewButtons = 
+    div divButtonStyle [button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "Left" ]
+                ,button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "Right" ]
+                ,button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "Up" ]
+                ,button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "Down" ]]
+
 
 viewGameAndText : Model -> List(Html Msg)
 viewGameAndText model = 
         if model.isGameFinished then
           [text ""]
         else
-          [div divStyle [ p [alignTextCentre] [text("Get the GREEN Square to the RED Square")]]
-          , div divButtonStyle [button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "Left" ],
-                button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "Right" ],
-                button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "Up" ],
-                button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "Down" ]]
+          [div divStyle [ p [alignTextCentre] [text "Get the "
+                                              ,span [greenText] [text "GREEN"]
+                                              ,text " Square to the "
+                                              ,span [redText] [text "RED"]
+                                              ,text " Square"]]
+          , viewButtons
+          , div divButtonStyle [button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "Left" ]
+                ,button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "Right" ]
+                ,button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "Up" ]
+                ,button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "Down" ]]
           , div (gameStyle) [viewPuzzle model]
           , div divStyle [p [alignTextCentre] [text("Moves " ++ String.fromInt model.turnCounter)]]
           --debug, remove once working
