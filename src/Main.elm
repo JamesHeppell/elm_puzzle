@@ -8,7 +8,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Url
-import Platform.Cmd exposing (none)
+
 
 
 
