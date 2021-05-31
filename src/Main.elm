@@ -8,7 +8,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Url
-
+import List.Extra exposing (getAt)
 
 
 
@@ -33,10 +33,10 @@ puzzleRows : Int
 puzzleRows = 3
 
 puzzleColumns : Int
-puzzleColumns = 2
+puzzleColumns = 3
 
 initialGoalPosition : Coordinate
-initialGoalPosition = {row=2, col=1}
+initialGoalPosition = {row=2, col=2}
 
 -- MODEL
 
@@ -60,7 +60,7 @@ init flags _ _ =
 
 
 initialModel: Model
-initialModel = Model "Navigate the maze..." 0 [[1,0],[0,3],[0,2]] 0 0 puzzleRows puzzleColumns initialGoalPosition False
+initialModel = Model "Navigate the maze..." 0 [[1,0,0],[0,3,0],[0,0,2]] 0 0 puzzleRows puzzleColumns initialGoalPosition False
 
 type alias Coordinate = 
     { row : Int
@@ -145,6 +145,12 @@ isPlayerAtGoal model rowIncrease colIncrease =
 
 isValidMove: Model -> Int -> Int -> Bool
 isValidMove model rowIncrease colIncrease = 
+  isMoveInsideGameArea model rowIncrease colIncrease
+  &&
+  isMoveToEmptySquare model rowIncrease colIncrease
+
+isMoveInsideGameArea: Model -> Int -> Int -> Bool
+isMoveInsideGameArea model rowIncrease colIncrease = 
   if model.playerPositionColumm + colIncrease >= 0 &&
      model.playerPositionColumm + colIncrease < model.maxCols then
     if model.playerPositionRow + rowIncrease >= 0 &&
@@ -155,6 +161,15 @@ isValidMove model rowIncrease colIncrease =
   else
     False
 
+isMoveToEmptySquare: Model -> Int -> Int -> Bool
+isMoveToEmptySquare model rowIncrease colIncrease =
+  case (model.gameBoard
+    |> getAt (rowIncrease + model.playerPositionRow)
+    |> Maybe.andThen (getAt (colIncrease + model.playerPositionColumm)) ) of
+  Just 3 -> False
+  _ -> True
+    
+  
 -- SUBSCRIPTIONS
 
 
@@ -226,9 +241,13 @@ divButtonStyle = [style "display" "flex"
                  ]
 
 buttonStyle : List(Attribute Msg)
-buttonStyle = [style "padding" "10px"
-              ,style "margin" "10px"
-              ,style "background-color" "rgb(135, 206, 250)"]
+buttonStyle = [style "width" "25px"
+              ,style "height" "25px"
+              ,style "margin" "auto 12px"
+              ,blueBG]
+
+blueBG :  Attribute Msg
+blueBG = style "background-color" "rgb(135, 206, 250)"
 
 gameStyle : List(Attribute Msg)
 gameStyle = [style "padding" "20px"]
@@ -241,16 +260,19 @@ viewPuzzle model =
 viewResetButton : Model -> Html Msg
 viewResetButton model = 
               if model.isGameFinished then
-                div divButtonStyle [button (buttonStyle ++ [onClick ResetPuzzle]) [text "Restart"]]
+                div divButtonStyle [button ([blueBG,  onClick ResetPuzzle]) [text "Restart"]]
               else 
                 text ""
                 
 viewButtons : Html Msg
 viewButtons = 
-    div divButtonStyle [button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "Left" ]
-                ,button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "Right" ]
-                ,button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "Up" ]
-                ,button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "Down" ]]
+    div [] [
+                div divButtonStyle [button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "↑" ]]
+                ,div divButtonStyle [
+                          button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "←" ]
+                         ,button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "→" ]
+                         ]
+                ,div divButtonStyle [button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "↓" ]]]
 
 
 viewGameAndText : Model -> List(Html Msg)
@@ -260,14 +282,10 @@ viewGameAndText model =
         else
           [div divStyle [ p [alignTextCentre] [text "Get the "
                                               ,span [greenText] [text "GREEN"]
-                                              ,text " Square to the "
+                                              ,text " square to the "
                                               ,span [redText] [text "RED"]
-                                              ,text " Square"]]
+                                              ,text " square"]]
           , viewButtons
-          , div divButtonStyle [button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "Left" ]
-                ,button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "Right" ]
-                ,button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "Up" ]
-                ,button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "Down" ]]
           , div (gameStyle) [viewPuzzle model]
           , div divStyle [p [alignTextCentre] [text("Moves " ++ String.fromInt model.turnCounter)]]
           --debug, remove once working
@@ -281,8 +299,8 @@ view : Model -> Browser.Document Msg
 view model =
   { title = "My Puzzles"
   , body = 
-      [div titleStyle [h1 [alignTextCentre] [text("Puzzles")]]]
-      ++
+      div titleStyle [h1 [alignTextCentre] [text("Puzzles")]]
+      ::
       viewGameAndText model
       ++
       [div divStyle [p [alignTextCentre] [text(model.gameMessage)]]
