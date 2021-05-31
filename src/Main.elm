@@ -8,6 +8,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Url
+import Platform.Cmd exposing (none)
 
 
 
@@ -59,7 +60,7 @@ init flags _ _ =
 
 
 initialModel: Model
-initialModel = Model "Navigate the Maze " 0 [[1,0],[0,3],[0,2]] 0 0 puzzleRows puzzleColumns initialGoalPosition False
+initialModel = Model "Navigate the maze..." 0 [[1,0],[0,3],[0,2]] 0 0 puzzleRows puzzleColumns initialGoalPosition False
 
 type alias Coordinate = 
     { row : Int
@@ -181,7 +182,7 @@ createTR msgs =
 
 createTable : List(List(Int)) -> Html Msg
 createTable msgs = 
-    table [] (List.map createTR msgs)
+    table [style "margin" "0 auto"] (List.map createTR msgs)
 
 greenBG : Attribute Msg
 greenBG = style "background-color" "rgb(26, 148, 49)"
@@ -203,29 +204,76 @@ blackBG = style "background-color" "rgb(0, 0, 0)"
 blackText : Attribute Msg
 blackText = style "color" "rgb(0, 0, 0)"
 
+alignTextCentre: Attribute Msg
+alignTextCentre = style "text-align" "center"
+titleStyle : List (Attribute Msg)
+titleStyle = [style "margin" "auto"
+             ,style "padding" "10px"
+             ,style "width" "60%"
+             ]
+
+divStyle : List (Attribute Msg)
+divStyle = [style "margin" "auto"
+           ,style "padding" "5px"
+           ,style "width" "90%"
+           ]
+
+
+divButtonStyle: List (Attribute Msg)
+divButtonStyle = [style "display" "flex"
+                 ,style "justify-content" "center"
+                 ,style "align-items" "center"
+                 ]
+
+buttonStyle : List(Attribute Msg)
+buttonStyle = [style "padding" "10px"
+              ,style "margin" "0 10px"
+              ,style "background-color" "rgb(135, 206, 250)"]
+
+gameStyle : List(Attribute Msg)
+gameStyle = [style "padding" "20px"]
 
 viewPuzzle : Model -> Html Msg
 viewPuzzle model = 
             createTable model.gameBoard                  
                      
+
+viewResetButton : Model -> Html Msg
+viewResetButton model = 
+              if model.isGameFinished then
+                div divButtonStyle [button (buttonStyle ++ [onClick ResetPuzzle]) [text "Restart"]]
+              else 
+                text ""
                 
+
+viewGameAndText : Model -> List(Html Msg)
+viewGameAndText model = 
+        if model.isGameFinished then
+          [text ""]
+        else
+          [div divStyle [ p [alignTextCentre] [text("Get the GREEN Square to the RED Square")]]
+          , div divButtonStyle [button (buttonStyle ++ [ onClick ButtonLeftClicked ]) [ text "Left" ],
+                button (buttonStyle ++ [ onClick ButtonRightClicked ]) [ text "Right" ],
+                button (buttonStyle ++ [ onClick ButtonUpClicked ]) [ text "Up" ],
+                button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "Down" ]]
+          , div (gameStyle) [viewPuzzle model]
+          , div divStyle [p [alignTextCentre] [text("Moves " ++ String.fromInt model.turnCounter)]]
+          --debug, remove once working
+          , div divStyle [text("Player Position (row,col) " ++ 
+                          String.fromInt model.playerPositionRow ++ " " ++
+                          String.fromInt model.playerPositionColumm)]
+          ----------------------------
+          ]
 
 view : Model -> Browser.Document Msg
 view model =
-  { title = "My test Page"
+  { title = "My Puzzles"
   , body = 
-      [ div [] [text("Puzzles")]
-      , div [] [text("Get the GREEN Square to the RED Square")]
-      , div [] [button [ onClick ButtonLeftClicked ] [ text "Left" ],
-                button [ onClick ButtonRightClicked ] [ text "Right" ],
-                button [ onClick ButtonUpClicked ] [ text "Up" ],
-                button [ onClick ButtonDownClicked ] [ text "Down" ]]
-      , viewPuzzle model
-      , div [] [text("Moves " ++ String.fromInt model.turnCounter)]
-      , div [] [text("Player Position (row,col) " ++ 
-                      String.fromInt model.playerPositionRow ++ " " ++
-                      String.fromInt model.playerPositionColumm)]
-      , div [] [text(model.gameMessage)]
-      , div [] [button [ onClick ResetPuzzle ] [text "Restart" ]]
+      [div titleStyle [h1 [alignTextCentre] [text("Puzzles")]]]
+      ++
+      viewGameAndText model
+      ++
+      [div divStyle [p [alignTextCentre] [text(model.gameMessage)]]
+      , viewResetButton model
       ]
   }
