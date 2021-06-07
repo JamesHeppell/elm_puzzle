@@ -8,8 +8,12 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Url
-import List.Extra exposing (getAt)
-
+import List.Extra exposing (getAt, setAt)
+import Dict
+import Dict exposing (Dict)
+import Char exposing (isHexDigit)
+import Dict exposing (toList)
+import List exposing (..)
 
 
 -- MAIN/PROGRAM
@@ -35,8 +39,28 @@ puzzleRows = 3
 puzzleColumns : Int
 puzzleColumns = 3
 
-initialGoalPosition : Coordinate
-initialGoalPosition = {row=2, col=2}
+-- CELLS
+
+type alias Index =
+  (Int, Int)
+
+type alias Cells = 
+  Dict.Dict Index State
+
+type State
+    = Space
+    | Player
+    | Goal
+    | Wall
+
+stateToString: State -> String
+stateToString state =
+  case state of
+     Space -> "Space"
+     Player -> "Player"
+     Goal -> "Goal"
+     Wall -> "Wall"
+
 
 -- MODEL
 
@@ -45,11 +69,11 @@ type alias Model =
   { gameMessage : String
     ,turnCounter : Int
     ,gameBoard : List(List(Int))
+    ,board : Cells
     ,playerPositionRow : Int
     ,playerPositionColumm : Int
     ,maxRows : Int
     ,maxCols : Int
-    ,goalPosition : Coordinate
     ,isGameFinished : Bool
   }
 
@@ -60,12 +84,57 @@ init flags _ _ =
 
 
 initialModel: Model
-initialModel = Model "Navigate the maze..." 0 [[1,0,0],[0,3,0],[0,0,2]] 0 0 puzzleRows puzzleColumns initialGoalPosition False
+initialModel = Model "Navigate the maze..." 0 [[1,0,0],[3,0,0],[0,2,0]] initialGrid 0 0 puzzleRows puzzleColumns False
 
-type alias Coordinate = 
-    { row : Int
-    , col : Int
-    }
+
+initialGrid : Cells
+initialGrid =
+  let
+    dict = Dict.fromList [((0,0),Player)
+                         ,((0,1),Space)
+                         ,((0,2),Space)
+                         ,((1,0),Wall)
+                         ,((1,1),Space)
+                         ,((1,2),Space)
+                         ,((2,0),Space)
+                         ,((2,1),Goal)
+                         ,((2,2),Space)
+                         ]
+  in 
+    dict
+
+
+getBoardCell : Index -> Cells -> State
+getBoardCell idx board =
+    Maybe.withDefault
+        Space
+        (Dict.get idx board)
+
+
+changeCell : State -> Index -> Cells -> Cells
+changeCell state idx board = 
+  let
+    newBoard = 
+      Dict.insert
+          idx
+          state
+          board
+  in
+    newBoard
+
+
+convertBoardIntoLists : Cells -> List (List(State))
+convertBoardIntoLists cells = 
+  cells
+  |> Dict.values
+  |> split puzzleRows
+
+
+split : Int -> List a -> List (List a)
+split i list =
+  case take i list of 
+    [] -> []
+    listHead -> listHead :: split i (drop i list)
 
 -- UPDATE
 
@@ -91,6 +160,7 @@ update msg model =
       else
         if isValidMove model 0 -1 then 
             ( {model | turnCounter = model.turnCounter + 1
+                      ,board = updateBoard model 0 -1
                       ,playerPositionColumm = model.playerPositionColumm - 1
                       ,gameMessage = ""}
           , Cmd.none )
@@ -103,6 +173,7 @@ update msg model =
       else
         if isValidMove model 0 1 then 
             ( {model | turnCounter = model.turnCounter + 1
+                      ,board = updateBoard model 0 1
                       ,playerPositionColumm = model.playerPositionColumm + 1
                       ,gameMessage = ""}
           , Cmd.none )
@@ -115,6 +186,7 @@ update msg model =
       else
         if isValidMove model -1 0 then 
               ( {model | turnCounter = model.turnCounter + 1
+                        ,board = updateBoard model -1 0
                         ,playerPositionRow = model.playerPositionRow - 1
                         ,gameMessage = ""}
             , Cmd.none )
@@ -127,6 +199,7 @@ update msg model =
       else
         if isValidMove model 1 0 then 
             ( {model | turnCounter = model.turnCounter + 1
+                      ,board = updateBoard model 1 0
                       ,playerPositionRow = model.playerPositionRow + 1
                       ,gameMessage = ""}
           , Cmd.none )
@@ -135,10 +208,25 @@ update msg model =
     _ ->
       ( model, Cmd.none )
 
+
+updateBoard: Model -> Int -> Int -> Cells    
+updateBoard model rowIncrease colIncrease =
+  let
+      --modify the move to then the move from
+      newboard = changeCell Player (model.playerPositionRow + rowIncrease
+                      ,model.playerPositionColumm + colIncrease
+                      ) model.board 
+  in
+    changeCell Space (model.playerPositionRow
+                      ,model.playerPositionColumm
+                      ) newboard 
+
+
 isPlayerAtGoal: Model -> Int -> Int -> Bool
 isPlayerAtGoal model rowIncrease colIncrease =
-    if model.playerPositionColumm + colIncrease == model.goalPosition.col &&
-       model.playerPositionRow + rowIncrease == model.goalPosition.row then
+    if getBoardCell (model.playerPositionRow + rowIncrease
+                    ,model.playerPositionColumm + colIncrease) 
+                    model.board == Goal then
       True
     else
       False
@@ -163,16 +251,15 @@ isMoveInsideGameArea model rowIncrease colIncrease =
 
 isMoveToEmptySquare: Model -> Int -> Int -> Bool
 isMoveToEmptySquare model rowIncrease colIncrease =
-  case (model.gameBoard
-    |> getAt (rowIncrease + model.playerPositionRow)
-    |> Maybe.andThen (getAt (colIncrease + model.playerPositionColumm)) ) of
-  Just 3 -> False
-  _ -> True
+  if getBoardCell (model.playerPositionRow + rowIncrease
+                    ,model.playerPositionColumm + colIncrease) 
+                    model.board /= Wall then
+      True
+    else
+      False
     
   
 -- SUBSCRIPTIONS
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
   Sub.none
@@ -181,21 +268,20 @@ subscriptions _ =
 
 -- VIEW
 
-createTD: Int -> Html Msg
-createTD int = 
-    case int of
-       0 -> td [grayBG, grayText] [text("A")]
-       1 -> td [greenBG, greenText] [text("A")]
-       2 -> td [redBG, redText] [text("A")]
-       3 -> td [blackBG, blackText] [text("A")]
-       _ -> td [grayBG, grayText] [text("A")]
+createTD: State -> Html Msg
+createTD state = 
+    case state of
+       Space -> td [grayBG, grayText] [text("A")]
+       Player -> td [greenBG, greenText] [text("A")]
+       Goal -> td [redBG, redText] [text("A")]
+       Wall -> td [blackBG, blackText] [text("A")]
 
 
-createTR : List(Int) -> Html Msg
+createTR : List(State) -> Html Msg
 createTR msgs =
     tr [] (List.map createTD msgs)
 
-createTable : List(List(Int)) -> Html Msg
+createTable : List(List(State)) -> Html Msg
 createTable msgs = 
     table [style "margin" "0 auto"] (List.map createTR msgs)
 
@@ -254,7 +340,7 @@ gameStyle = [style "padding" "20px"]
 
 viewPuzzle : Model -> Html Msg
 viewPuzzle model = 
-            createTable model.gameBoard                  
+            createTable (convertBoardIntoLists model.board)             
                      
 
 viewResetButton : Model -> Html Msg
@@ -289,9 +375,9 @@ viewGameAndText model =
           , div (gameStyle) [viewPuzzle model]
           , div divStyle [p [alignTextCentre] [text("Moves " ++ String.fromInt model.turnCounter)]]
           --debug, remove once working
-          , div divStyle [text("Player Position (row,col) " ++ 
-                          String.fromInt model.playerPositionRow ++ " " ++
-                          String.fromInt model.playerPositionColumm)]
+          -- , div divStyle [text("Player Position (row,col) " ++ 
+          --                 String.fromInt model.playerPositionRow ++ " " ++
+          --                 String.fromInt model.playerPositionColumm)]
           ----------------------------
           ]
 
