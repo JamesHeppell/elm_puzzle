@@ -3,41 +3,53 @@
 module Main exposing (..)
 
 import Browser
-import Browser.Navigation as Nav
 import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html.Attributes exposing (style, attribute)
 import Html.Events exposing (onClick)
 import Url
-import List.Extra exposing (getAt, setAt)
 import Dict
-import Dict exposing (Dict)
-import Char exposing (isHexDigit)
-import Dict exposing (toList)
 import List exposing (..)
 
 
 -- MAIN/PROGRAM
 
 
-main : Program () Model Msg
+main : Program Size Model Msg
 main =
-  Browser.application
+  Browser.element
     { init = init
     , view = view
     , update = update
     , subscriptions = subscriptions
-    , onUrlChange = UrlChanged
-    , onUrlRequest = LinkClicked
     }
 
-
---UTIL
-
+--UTIL 
 puzzleRows : Int
 puzzleRows = 3
 
 puzzleColumns : Int
 puzzleColumns = 3
+
+inputgrid: List((Int,Int),State)
+inputgrid = 
+            [((0,0),Player)
+            ,((0,1),Space)
+            ,((0,2),Space)
+            ,((1,0),Wall)
+            ,((1,1),Space)
+            ,((1,2),Space)
+            ,((2,0),Space)
+            ,((2,1),Goal)
+            ,((2,2),Space)
+            ]
+
+-- inputgrid: List((Int,Int),State)
+-- inputgrid = 
+--             [((0,0),Player)
+--             ,((0,1),Space)
+--             ,((1,0),Wall)
+--             ,((1,1),Goal)
+--             ]
 
 -- CELLS
 
@@ -64,44 +76,43 @@ stateToString state =
 
 -- MODEL
 
+type alias Size = 
+      {height : Int
+      ,width : Int
+      }
+
+type alias Flags = Size
 
 type alias Model =
   { gameMessage : String
     ,turnCounter : Int
-    ,gameBoard : List(List(Int))
     ,board : Cells
     ,playerPositionRow : Int
     ,playerPositionColumm : Int
     ,maxRows : Int
     ,maxCols : Int
     ,isGameFinished : Bool
+    ,size : Size
   }
 
 
-init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
-init flags _ _ =
-   ( initialModel, Cmd.none )
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+   ( initialModel flags, Cmd.none )
 
 
-initialModel: Model
-initialModel = Model "Navigate the maze..." 0 [[1,0,0],[3,0,0],[0,2,0]] initialGrid 0 0 puzzleRows puzzleColumns False
+initialModel: Flags -> Model
+initialModel flags = 
+    Model "Navigate the maze..." 0 initialGrid 0 0 puzzleRows puzzleColumns False {width=flags.width, height=flags.height}
 
 
 initialGrid : Cells
 initialGrid =
   let
-    dict = Dict.fromList [((0,0),Player)
-                         ,((0,1),Space)
-                         ,((0,2),Space)
-                         ,((1,0),Wall)
-                         ,((1,1),Space)
-                         ,((1,2),Space)
-                         ,((2,0),Space)
-                         ,((2,1),Goal)
-                         ,((2,2),Space)
-                         ]
+    dict = Dict.fromList inputgrid
   in 
     dict
+
 
 
 getBoardCell : Index -> Cells -> State
@@ -152,7 +163,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case msg of
     ResetPuzzle ->
-      (initialModel, Cmd.none)
+      (initialModel model.size, Cmd.none)
     ButtonLeftClicked ->
       if isPlayerAtGoal model 0 -1 then
         ({model | isGameFinished = True
@@ -268,45 +279,60 @@ subscriptions _ =
 
 -- VIEW
 
-createTD: State -> Html Msg
-createTD state = 
+cellSize : Size -> Int
+cellSize size = 
+  min size.height size.width // (puzzleRows * 3)
+
+createTD: Size -> State -> Html Msg
+createTD size state = 
     case state of
-       Space -> td [grayBG, grayText] [text("A")]
-       Player -> td [greenBG, greenText] [text("A")]
-       Goal -> td [redBG, redText] [text("A")]
-       Wall -> td [blackBG, blackText] [text("A")]
+       Space -> td [grayBG, grayText, tdMaxHeight (cellSize size), tdMaxWidth (cellSize size)] [text("")]
+       Player -> td [greenBG, greenText, tdMaxHeight (cellSize size), tdMaxWidth (cellSize size)] [text("")]
+       Goal -> td [redBG, redText, tdMaxHeight (cellSize size), tdMaxWidth (cellSize size)] [text("")]
+       Wall -> td [blackBG, blackText, tdMaxHeight (cellSize size), tdMaxWidth (cellSize size)] [text("")]
 
 
-createTR : List(State) -> Html Msg
-createTR msgs =
-    tr [] (List.map createTD msgs)
+createTR : Size -> List(State) -> Html Msg
+createTR size msgs =
+    tr [] (List.map (createTD size) msgs)
 
-createTable : List(List(State)) -> Html Msg
-createTable msgs = 
-    table [style "margin" "0 auto"] (List.map createTR msgs)
+createTable : Size -> List(List(State)) -> Html Msg
+createTable size msgs = 
+    table [style "margin" "0 auto"] (List.map (createTR size) msgs)
+
+tdMaxWidth : Int -> Attribute Msg
+tdMaxWidth width = style "width" (String.fromInt width ++ "px")
+
+tdMaxHeight :Int -> Attribute Msg
+tdMaxHeight height = style "height" (String.fromInt height ++ "px")
 
 greenBG : Attribute Msg
 greenBG = style "background-color" "rgb(26, 148, 49)"
+
 greenText : Attribute Msg
 greenText = style "color" "rgb(26, 148, 49)"
 
 grayBG :  Attribute Msg
 grayBG = style "background-color" "rgb(192, 192, 192)"
+
 grayText : Attribute Msg
 grayText = style "color" "rgb(192, 192, 192)"
 
 redBG :  Attribute Msg
 redBG = style "background-color" "rgb(255, 0, 0)"
+
 redText : Attribute Msg
 redText = style "color" "rgb(255, 0, 0)"
 
 blackBG :  Attribute Msg
 blackBG = style "background-color" "rgb(0, 0, 0)"
+
 blackText : Attribute Msg
 blackText = style "color" "rgb(0, 0, 0)"
 
 alignTextCentre: Attribute Msg
 alignTextCentre = style "text-align" "center"
+
 titleStyle : List (Attribute Msg)
 titleStyle = [style "margin" "auto"
              ,style "padding" "10px"
@@ -324,6 +350,7 @@ divButtonStyle: List (Attribute Msg)
 divButtonStyle = [style "display" "flex"
                  ,style "justify-content" "center"
                  ,style "align-items" "center"
+                 ,style "text-align" "center"
                  ]
 
 buttonStyle : List(Attribute Msg)
@@ -340,7 +367,7 @@ gameStyle = [style "padding" "20px"]
 
 viewPuzzle : Model -> Html Msg
 viewPuzzle model = 
-            createTable (convertBoardIntoLists model.board)             
+            createTable model.size (convertBoardIntoLists model.board)             
                      
 
 viewResetButton : Model -> Html Msg
@@ -361,12 +388,13 @@ viewButtons =
                 ,div divButtonStyle [button (buttonStyle ++ [ onClick ButtonDownClicked ]) [ text "↓" ]]]
 
 
-viewGameAndText : Model -> List(Html Msg)
+viewGameAndText : Model -> Html Msg
 viewGameAndText model = 
         if model.isGameFinished then
-          [text ""]
+          text ""
         else
-          [div divStyle [ p [alignTextCentre] [text "Get the "
+          div [] [
+          div divStyle [ p [alignTextCentre] [text "Get the "
                                               ,span [greenText] [text "GREEN"]
                                               ,text " square to the "
                                               ,span [redText] [text "RED"]
@@ -381,15 +409,16 @@ viewGameAndText model =
           ----------------------------
           ]
 
-view : Model -> Browser.Document Msg
+view : Model -> Html Msg
 view model =
-  { title = "My Puzzles"
-  , body = 
-      div titleStyle [h1 [alignTextCentre] [text("Puzzles")]]
-      ::
-      viewGameAndText model
-      ++
-      [div divStyle [p [alignTextCentre] [text(model.gameMessage)]]
-      , viewResetButton model
+      div []
+      [
+        div titleStyle [h1 [alignTextCentre] [text("Puzzles")]]
+        ,
+        viewGameAndText model
+        ,
+        div divStyle [p [alignTextCentre] [text(model.gameMessage)]]
+        , viewResetButton model
+        
       ]
-  }
+      
