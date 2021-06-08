@@ -5,7 +5,7 @@ module Main exposing (..)
 import Browser
 import Browser.Events as Events
 import Html exposing (..)
-import Html.Attributes exposing (style, attribute)
+import Html.Attributes exposing (style)
 import Html.Events exposing (onClick)
 import Url
 import Dict
