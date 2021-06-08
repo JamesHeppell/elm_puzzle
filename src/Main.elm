@@ -3,6 +3,7 @@
 module Main exposing (..)
 
 import Browser
+import Browser.Events as Events
 import Html exposing (..)
 import Html.Attributes exposing (style, attribute)
 import Html.Events exposing (onClick)
@@ -157,6 +158,7 @@ type Msg
   | ButtonUpClicked
   | ButtonDownClicked
   | ResetPuzzle
+  | BrowserResize Int Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -216,6 +218,11 @@ update msg model =
           , Cmd.none )
         else 
           ({model | gameMessage = "Not a valid move!"}, Cmd.none)
+    BrowserResize w h ->
+        let
+            newSize = {width = w, height = h }
+        in
+          ({model | size = newSize}, Cmd.none)
     _ ->
       ( model, Cmd.none )
 
@@ -273,7 +280,7 @@ isMoveToEmptySquare model rowIncrease colIncrease =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-  Sub.none
+  Sub.batch[Events.onResize BrowserResize]
 
 
 
@@ -281,7 +288,7 @@ subscriptions _ =
 
 cellSize : Size -> Int
 cellSize size = 
-  min size.height size.width // (puzzleRows * 3)
+  min size.height size.width // (puzzleRows * 2)
 
 createTD: Size -> State -> Html Msg
 createTD size state = 
